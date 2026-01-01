@@ -1,15 +1,31 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { supabase, Task } from './lib/supabase';
-import { Plus, Trash2, Edit2, Check, X, Calendar, Flag, LogOut } from 'lucide-react';
+import {
+  Plus,
+  Trash2,
+  Edit2,
+  Check,
+  X,
+  Calendar,
+  Flag,
+  LogOut,
+  Sparkles,
+  Heart,
+  Search,
+  Wand2,
+  Cat
+} from 'lucide-react';
 import { AuthForm } from './components/AuthForm';
 
 function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [newTask, setNewTask] = useState({ title: '', description: '', priority: 'medium' as const, due_date: '' });
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
+  const [filter, setFilter] = useState<'all' | 'active' | 'completed' | 'urgent'>('all');
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusMessage, setStatusMessage] = useState<{ tone: 'success' | 'error' | 'info'; text: string } | null>(null);
 
   useEffect(() => {
     checkUser();
@@ -41,6 +57,7 @@ function App() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
+    setStatusMessage({ tone: 'info', text: 'Cerraste sesión. ¡Vuelve pronto para seguir organizando con Hello Kitty!' });
   };
 
   const fetchTasks = async (uid: string) => {
@@ -58,7 +75,10 @@ function App() {
   const addTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTask.title.trim() || !userId) {
-      alert('Por favor ingresa un título para la tarea');
+      setStatusMessage({
+        tone: 'error',
+        text: 'Necesitamos un título para que Hello Kitty recuerde la tarea. Agrega uno dulce y breve.'
+      });
       return;
     }
 
@@ -77,17 +97,27 @@ function App() {
 
       if (error) {
         console.error('Error adding task:', error);
-        alert('Error al agregar la tarea: ' + error.message);
+        setStatusMessage({
+          tone: 'error',
+          text: 'No pudimos guardar la tarea. Revisa tu conexión y vuelve a intentarlo.'
+        });
         return;
       }
 
       if (data) {
         setTasks([data, ...tasks]);
         setNewTask({ title: '', description: '', priority: 'medium', due_date: '' });
+        setStatusMessage({
+          tone: 'success',
+          text: 'Tarea guardada con glitter. ¡Hello Kitty aplaude tu organización!'
+        });
       }
     } catch (err) {
       console.error('Unexpected error:', err);
-      alert('Ocurrió un error inesperado');
+      setStatusMessage({
+        tone: 'error',
+        text: 'Ocurrió un error inesperado al guardar la tarea. Intenta nuevamente en unos segundos.'
+      });
     }
   };
 
@@ -101,6 +131,12 @@ function App() {
 
     if (!error && data) {
       setTasks(tasks.map(t => t.id === task.id ? data : t));
+      setStatusMessage({
+        tone: data.completed ? 'success' : 'info',
+        text: data.completed
+          ? '¡Listo! Marcaste la tarea como completada. Hello Kitty celebra contigo. 🎉'
+          : 'Tarea reactivada. ¡Vamos a darle seguimiento con brillo y constancia!'
+      });
     }
   };
 
@@ -124,6 +160,10 @@ function App() {
     if (!error && data) {
       setTasks(tasks.map(t => t.id === data.id ? data : t));
       setEditingTask(null);
+      setStatusMessage({
+        tone: 'success',
+        text: 'Actualizaste los detalles con cariño. Los cambios quedaron guardados.'
+      });
     }
   };
 
@@ -135,14 +175,36 @@ function App() {
 
     if (!error) {
       setTasks(tasks.filter(t => t.id !== id));
+      setStatusMessage({
+        tone: 'info',
+        text: 'Eliminaste la tarea. Si fue un error, siempre puedes crearla de nuevo con un nuevo toque kawaii.'
+      });
     }
   };
 
-  const filteredTasks = tasks.filter(task => {
-    if (filter === 'active') return !task.completed;
-    if (filter === 'completed') return task.completed;
-    return true;
-  });
+  const kittyUser = useMemo(() => userEmail?.split('@')[0] || 'amigx', [userEmail]);
+
+  const filteredTasks = tasks
+    .filter(task => {
+      if (filter === 'active') return !task.completed;
+      if (filter === 'completed') return task.completed;
+      if (filter === 'urgent') {
+        if (!task.due_date || task.completed) return false;
+        const today = new Date();
+        const dueDate = new Date(task.due_date);
+        const diffDays = Math.floor((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        return diffDays <= 3;
+      }
+      return true;
+    })
+    .filter(task => {
+      if (!searchTerm.trim()) return true;
+      const query = searchTerm.toLowerCase();
+      return (
+        task.title.toLowerCase().includes(query) ||
+        task.description?.toLowerCase().includes(query)
+      );
+    });
 
   const priorityColors = {
     low: 'bg-blue-100 text-blue-700 border-blue-300',
@@ -156,20 +218,59 @@ function App() {
     high: 'Alta'
   };
 
+  const getDueStatus = (task: Task) => {
+    if (!task.due_date) {
+      return { label: 'Sin fecha, planéala pronto', style: 'bg-pink-50 text-pink-500 border-pink-200' };
+    }
+    const today = new Date();
+    const dueDate = new Date(task.due_date);
+    const diffDays = Math.floor((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) {
+      return { label: 'Vencida, dale amor urgente', style: 'bg-red-50 text-red-600 border-red-200' };
+    }
+    if (diffDays === 0) {
+      return { label: 'Vence hoy, a brillar ✨', style: 'bg-orange-50 text-orange-600 border-orange-200' };
+    }
+    if (diffDays <= 3) {
+      return { label: `Vence en ${diffDays} día(s)`, style: 'bg-amber-50 text-amber-600 border-amber-200' };
+    }
+    return { label: `Lista para ${dueDate.toLocaleDateString('es-ES')}`, style: 'bg-green-50 text-green-600 border-green-200' };
+  };
+
+  const completedCount = tasks.filter(t => t.completed).length;
+  const activeCount = tasks.filter(t => !t.completed).length;
+  const urgentCount = tasks.filter(t => {
+    if (!t.due_date || t.completed) return false;
+    const today = new Date();
+    const dueDate = new Date(t.due_date);
+    const diffDays = Math.floor((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return diffDays <= 3;
+  }).length;
+
+  const completionRate = tasks.length ? Math.round((completedCount / tasks.length) * 100) : 0;
+  const progressTone = completionRate === 100 ? 'bg-green-400' : completionRate > 60 ? 'bg-pink-500' : 'bg-amber-400';
+  const motivationalLine = tasks.length === 0
+    ? 'Crea tu primer tarea y Hello Kitty preparará una lluvia de confeti para celebrarte.'
+    : completionRate >= 80
+      ? '¡Estás arrasando! Un par de tareas más y el listón quedará perfecto.'
+      : 'Sigue adelante, cada tarea completada suma una estrella brillante.';
+
   if (!userId) {
     return <AuthForm />;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-pink-50 to-white">
-      <div className="absolute inset-0 opacity-5">
+    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-pink-50 to-white relative overflow-hidden">
+      <div className="absolute inset-0 opacity-10 pointer-events-none">
         <div className="absolute top-10 left-10 text-pink-400 text-8xl">🎀</div>
         <div className="absolute top-32 right-20 text-pink-400 text-6xl">💕</div>
         <div className="absolute bottom-20 left-32 text-pink-400 text-7xl">🌸</div>
         <div className="absolute bottom-40 right-40 text-pink-400 text-6xl">✨</div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(255,192,203,0.25),transparent_20%),radial-gradient(circle_at_90%_10%,rgba(255,182,193,0.2),transparent_18%),radial-gradient(circle_at_30%_80%,rgba(255,192,203,0.2),transparent_20%)]" />
       </div>
 
-      <div className="relative container mx-auto px-4 py-8 max-w-4xl">
+      <div className="relative container mx-auto px-4 py-8 max-w-5xl">
         <div className="flex justify-end mb-4">
           <button
             onClick={handleSignOut}
@@ -180,93 +281,143 @@ function App() {
           </button>
         </div>
 
-        <div className="text-center mb-8">
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="flex justify-center">
-              <img
-                src="https://images.pexels.com/photos/1128573/pexels-photo-1128573.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&fit=crop"
-                alt="Flores rosas"
-                className="w-20 h-20 rounded-2xl object-cover shadow-lg"
-              />
-            </div>
-            <div className="flex justify-center">
-              <img
-                src="https://images.pexels.com/photos/3094215/pexels-photo-3094215.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&fit=crop"
-                alt="Decoración kawaii"
-                className="w-20 h-20 rounded-2xl object-cover shadow-lg"
-              />
-            </div>
-            <div className="flex justify-center">
-              <img
-                src="https://images.pexels.com/photos/1833080/pexels-photo-1833080.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&fit=crop"
-                alt="Rosa romántica"
-                className="w-20 h-20 rounded-2xl object-cover shadow-lg"
-              />
-            </div>
-          </div>
+        <div className="text-center mb-10 relative">
           <div className="flex items-center justify-center gap-4 mb-4">
             <div className="text-6xl">🎀</div>
             <h1 className="text-5xl font-bold bg-gradient-to-r from-pink-500 to-pink-300 bg-clip-text text-transparent">
-              Mi Agenda Kawaii
+              Agenda Hello Kitty
             </h1>
             <div className="text-6xl">💖</div>
           </div>
-          <p className="text-pink-400 text-lg">¡Organiza tus tareas con mucho amor!</p>
+          <p className="text-pink-400 text-lg mb-3">Hola {kittyUser}, esta es tu nube de tareas kawaii.</p>
+          <p className="text-pink-300 text-sm">Organiza, prioriza y recibe mensajes claros pensados para ti.</p>
+          <div className="absolute -top-6 right-4 bg-white border-4 border-pink-200 rounded-full p-3 shadow-xl hidden sm:block">
+            <img
+              src="https://upload.wikimedia.org/wikipedia/en/0/05/Hello_Kitty_Logo.svg"
+              alt="Hello Kitty"
+              className="w-16 h-16 object-contain"
+            />
+          </div>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-2xl border-4 border-pink-200 p-8 mb-6">
-          <form onSubmit={addTask} className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="bg-white/80 backdrop-blur rounded-3xl border-2 border-pink-200 p-4 shadow-lg flex items-center gap-3">
+            <Sparkles className="text-pink-500" />
             <div>
-              <input
-                type="text"
-                placeholder="✨ Nueva tarea..."
-                value={newTask.title}
-                onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                className="w-full px-6 py-4 rounded-2xl border-2 border-pink-200 focus:border-pink-400 focus:outline-none text-gray-700 placeholder-pink-300 text-lg"
-              />
-            </div>
-            <div>
-              <textarea
-                placeholder="💭 Descripción (opcional)..."
-                value={newTask.description}
-                onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                className="w-full px-6 py-4 rounded-2xl border-2 border-pink-200 focus:border-pink-400 focus:outline-none text-gray-700 placeholder-pink-300 resize-none"
-                rows={2}
-              />
-            </div>
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <select
-                  value={newTask.priority}
-                  onChange={(e) => setNewTask({ ...newTask, priority: e.target.value as any })}
-                  className="w-full px-6 py-4 rounded-2xl border-2 border-pink-200 focus:border-pink-400 focus:outline-none text-gray-700"
-                >
-                  <option value="low">🌟 Prioridad Baja</option>
-                  <option value="medium">⭐ Prioridad Media</option>
-                  <option value="high">🌺 Prioridad Alta</option>
-                </select>
+              <p className="text-xs uppercase text-pink-400">Progreso</p>
+              <p className="text-lg font-semibold text-pink-600">{completionRate}% completado</p>
+              <div className="mt-2 w-full bg-pink-50 rounded-full h-2 overflow-hidden">
+                <div className={`h-2 rounded-full ${progressTone}`} style={{ width: `${completionRate}%` }} />
               </div>
-              <div className="flex-1">
+            </div>
+          </div>
+          <div className="bg-white/80 backdrop-blur rounded-3xl border-2 border-pink-200 p-4 shadow-lg flex items-center gap-3">
+            <Heart className="text-red-400" />
+            <div>
+              <p className="text-xs uppercase text-pink-400">Activas</p>
+              <p className="text-lg font-semibold text-pink-600">{activeCount} tareas pendientes</p>
+              <p className="text-xs text-pink-300">{motivationalLine}</p>
+            </div>
+          </div>
+          <div className="bg-white/80 backdrop-blur rounded-3xl border-2 border-pink-200 p-4 shadow-lg flex items-center gap-3">
+            <Cat className="text-pink-500" />
+            <div>
+              <p className="text-xs uppercase text-pink-400">Urgencias</p>
+              <p className="text-lg font-semibold text-pink-600">{urgentCount} listas</p>
+              <p className="text-xs text-pink-300">Hello Kitty te avisa lo que vence pronto.</p>
+            </div>
+          </div>
+        </div>
+
+        {statusMessage && (
+          <div
+            className={`mb-6 rounded-2xl border-2 px-4 py-3 shadow-md flex items-center gap-2 ${
+              statusMessage.tone === 'success'
+                ? 'bg-green-50 border-green-200 text-green-700'
+                : statusMessage.tone === 'error'
+                  ? 'bg-red-50 border-red-200 text-red-700'
+                  : 'bg-pink-50 border-pink-200 text-pink-600'
+            }`}
+          >
+            <Wand2 size={18} />
+            <span className="text-sm">{statusMessage.text}</span>
+          </div>
+        )}
+
+        <div className="bg-white rounded-3xl shadow-2xl border-4 border-pink-200 p-8 mb-6 relative overflow-hidden">
+          <div className="absolute -right-8 -top-8 bg-pink-50 border-4 border-pink-200 w-28 h-28 rounded-full opacity-70" />
+          <div className="absolute -left-10 -bottom-10 bg-pink-50 border-4 border-pink-200 w-32 h-32 rounded-full opacity-60" />
+          <div className="relative z-10">
+            <div className="flex flex-col md:flex-row gap-3 mb-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-pink-400" size={20} />
                 <input
-                  type="date"
-                  value={newTask.due_date}
-                  onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
-                  className="w-full px-6 py-4 rounded-2xl border-2 border-pink-200 focus:border-pink-400 focus:outline-none text-gray-700"
+                  type="text"
+                  placeholder="Busca por título o descripción"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 rounded-2xl border-2 border-pink-200 focus:border-pink-400 focus:outline-none text-gray-700 placeholder-pink-300"
                 />
               </div>
+              <div className="bg-pink-50 border-2 border-pink-200 rounded-2xl px-4 py-3 text-pink-400 text-sm">
+                Tip: usa palabras clave como "examen" o "cita" para encontrarlas rápido.
+              </div>
             </div>
-            <button
-              type="submit"
-              className="w-full bg-gradient-to-r from-pink-400 to-pink-500 hover:from-pink-500 hover:to-pink-600 text-white py-4 rounded-2xl font-semibold flex items-center justify-center gap-2 transition-all transform hover:scale-105 shadow-lg text-lg"
-            >
-              <Plus size={24} />
-              Agregar Tarea
-            </button>
-          </form>
+            <form onSubmit={addTask} className="space-y-4">
+              <div>
+                <input
+                  type="text"
+                  placeholder="✨ Nueva tarea... (ej. Revisar agenda con Hello Kitty)"
+                  value={newTask.title}
+                  onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                  className="w-full px-6 py-4 rounded-2xl border-2 border-pink-200 focus:border-pink-400 focus:outline-none text-gray-700 placeholder-pink-300 text-lg"
+                />
+                <p className="text-xs text-pink-300 mt-1">Un título claro ayuda a recibir recordatorios útiles.</p>
+              </div>
+              <div>
+                <textarea
+                  placeholder="💭 Detalles dulces y específicos... ¿Qué necesitas lograr?"
+                  value={newTask.description}
+                  onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                  className="w-full px-6 py-4 rounded-2xl border-2 border-pink-200 focus:border-pink-400 focus:outline-none text-gray-700 placeholder-pink-300 resize-none"
+                  rows={2}
+                />
+              </div>
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1">
+                  <select
+                    value={newTask.priority}
+                    onChange={(e) => setNewTask({ ...newTask, priority: e.target.value as any })}
+                    className="w-full px-6 py-4 rounded-2xl border-2 border-pink-200 focus:border-pink-400 focus:outline-none text-gray-700"
+                  >
+                    <option value="low">🌟 Prioridad Baja - sin prisa, pero con brillo</option>
+                    <option value="medium">⭐ Prioridad Media - dale un abrazo pronto</option>
+                    <option value="high">🌺 Prioridad Alta - Hello Kitty la marca como urgente</option>
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <input
+                    type="date"
+                    value={newTask.due_date}
+                    onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
+                    className="w-full px-6 py-4 rounded-2xl border-2 border-pink-200 focus:border-pink-400 focus:outline-none text-gray-700"
+                  />
+                  <p className="text-xs text-pink-300 mt-1">Define una fecha para recibir alertas más claras.</p>
+                </div>
+              </div>
+              <button
+                type="submit"
+                className="w-full bg-gradient-to-r from-pink-400 to-pink-500 hover:from-pink-500 hover:to-pink-600 text-white py-4 rounded-2xl font-semibold flex items-center justify-center gap-2 transition-all transform hover:scale-105 shadow-lg text-lg"
+              >
+                <Plus size={24} />
+                Agregar Tarea
+              </button>
+            </form>
+          </div>
         </div>
 
         <div className="bg-white rounded-3xl shadow-2xl border-4 border-pink-200 p-6">
-          <div className="flex gap-2 mb-6 bg-pink-50 p-2 rounded-2xl">
+          <div className="flex flex-col md:flex-row gap-2 mb-6 bg-pink-50 p-2 rounded-2xl">
             <button
               onClick={() => setFilter('all')}
               className={`flex-1 py-3 rounded-xl font-semibold transition-all ${
@@ -297,6 +448,16 @@ function App() {
             >
               Completadas ({tasks.filter(t => t.completed).length})
             </button>
+            <button
+              onClick={() => setFilter('urgent')}
+              className={`flex-1 py-3 rounded-xl font-semibold transition-all ${
+                filter === 'urgent'
+                  ? 'bg-gradient-to-r from-pink-400 to-pink-500 text-white shadow-md'
+                  : 'text-pink-400 hover:bg-pink-100'
+              }`}
+            >
+              Urgentes ({urgentCount})
+            </button>
           </div>
 
           <div className="space-y-3">
@@ -307,7 +468,8 @@ function App() {
                   alt="Flores decorativas"
                   className="w-32 h-32 rounded-2xl object-cover mx-auto mb-4 shadow-lg"
                 />
-                <p className="text-pink-300 text-lg">No hay tareas aquí</p>
+                <p className="text-pink-300 text-lg mb-2">No hay tareas aquí</p>
+                <p className="text-pink-400 text-sm">Escribe una idea y Hello Kitty te ayudará a darle forma.</p>
               </div>
             ) : (
               filteredTasks.map((task) => (
@@ -400,10 +562,14 @@ function App() {
                             <Flag size={12} className="inline mr-1" />
                             {priorityLabels[task.priority]}
                           </span>
-                          {task.due_date && (
-                            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-700 border-2 border-purple-300">
-                              <Calendar size={12} className="inline mr-1" />
-                              {new Date(task.due_date).toLocaleDateString('es-ES')}
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold border-2 ${getDueStatus(task).style}`}>
+                            <Calendar size={12} className="inline mr-1" />
+                            {getDueStatus(task).label}
+                          </span>
+                          {!task.completed && (
+                            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-pink-100 text-pink-600 border-2 border-pink-200">
+                              <Heart size={12} className="inline mr-1" />
+                              Dale cariño hoy
                             </span>
                           )}
                         </div>
@@ -430,21 +596,25 @@ function App() {
           </div>
         </div>
 
-        <div className="text-center mt-8 bg-white rounded-3xl shadow-2xl border-4 border-pink-200 p-6">
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <img
-              src="https://images.pexels.com/photos/3962286/pexels-photo-3962286.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop"
-              alt="Decoración rosa"
-              className="w-24 h-24 rounded-2xl object-cover shadow-lg"
-            />
-            <img
-              src="https://images.pexels.com/photos/2249528/pexels-photo-2249528.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop"
-              alt="Flores kawaii"
-              className="w-24 h-24 rounded-2xl object-cover shadow-lg"
-            />
+        <div className="text-center mt-8 bg-white rounded-3xl shadow-2xl border-4 border-pink-200 p-6 relative overflow-hidden">
+          <div className="absolute -left-6 -top-6 bg-pink-100 w-24 h-24 rounded-full opacity-40" />
+          <div className="absolute -right-10 bottom-0 bg-rose-100 w-32 h-32 rounded-full opacity-30" />
+          <div className="relative z-10">
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <img
+                src="https://images.pexels.com/photos/3962286/pexels-photo-3962286.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop"
+                alt="Decoración rosa"
+                className="w-24 h-24 rounded-2xl object-cover shadow-lg"
+              />
+              <img
+                src="https://images.pexels.com/photos/2249528/pexels-photo-2249528.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop"
+                alt="Flores kawaii"
+                className="w-24 h-24 rounded-2xl object-cover shadow-lg"
+              />
+            </div>
+            <p className="text-pink-400 font-semibold text-lg mb-2">✨ Hecho con amor y mucho Hello Kitty 💖</p>
+            <p className="text-pink-300 text-sm">Organiza tus tareas y recibe mensajes claros, bonitos y accionables. 🌸</p>
           </div>
-          <p className="text-pink-400 font-semibold text-lg mb-2">✨ Hecho con amor y mucho kawaii 💖</p>
-          <p className="text-pink-300 text-sm">¡Organiza tus tareas y alcanza tus metas! 🌸</p>
         </div>
       </div>
     </div>
