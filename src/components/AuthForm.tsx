@@ -36,7 +36,14 @@ export function AuthForm() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-pink-50 to-white flex items-center justify-center px-4">
+    <div
+      className="min-h-screen bg-gradient-to-br from-pink-100 via-pink-50 to-white flex items-center justify-center px-4 relative"
+      style={{
+        backgroundImage: `linear-gradient(135deg, rgba(255,192,203,0.35), rgba(255,255,255,0.7)), url("https://ibb.co/21HfMPtV")`,
+        backgroundSize: 'cover',
+        backgroundAttachment: 'fixed'
+      }}
+    >
       <div className="absolute inset-0 opacity-5">
         <div className="absolute top-10 left-10 text-pink-400 text-8xl">🎀</div>
         <div className="absolute top-32 right-20 text-pink-400 text-6xl">💕</div>
@@ -57,7 +64,7 @@ export function AuthForm() {
           <p className="text-pink-300 text-sm">Crea tu cuenta o inicia sesión para recibir mensajes personalizados.</p>
           <div className="flex justify-center mt-4">
             <img
-              src="https://upload.wikimedia.org/wikipedia/en/0/05/Hello_Kitty_Logo.svg"
+              src="https://ibb.co/FQxtypm"
               alt="Hello Kitty"
               className="w-16 h-16 object-contain"
             />
@@ -149,8 +156,8 @@ export function AuthForm() {
 
           <div className="mt-6 text-center text-sm text-pink-400">
             <img
-              src="https://images.pexels.com/photos/2417842/pexels-photo-2417842.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&fit=crop"
-              alt="Flores decorativas"
+              src="https://ibb.co/Q38xDy8X"
+              alt="Hello Kitty decorativa"
               className="w-24 h-24 rounded-2xl object-cover mx-auto mb-3 shadow-lg"
             />
             <div className="flex items-center justify-center gap-2">
