@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Mail, Lock, LogIn, UserPlus } from 'lucide-react';
+import { Mail, Lock, LogIn, UserPlus, Heart, Sparkles } from 'lucide-react';
 
 export function AuthForm() {
   const [isLogin, setIsLogin] = useState(true);
@@ -53,7 +53,15 @@ export function AuthForm() {
             </h1>
             <div className="text-6xl">💖</div>
           </div>
-          <p className="text-pink-400 text-lg">¡Organiza tus tareas con mucho amor!</p>
+          <p className="text-pink-400 text-lg">¡Organiza tus tareas con mucho amor y estilo Hello Kitty!</p>
+          <p className="text-pink-300 text-sm">Crea tu cuenta o inicia sesión para recibir mensajes personalizados.</p>
+          <div className="flex justify-center mt-4">
+            <img
+              src="https://upload.wikimedia.org/wikipedia/en/0/05/Hello_Kitty_Logo.svg"
+              alt="Hello Kitty"
+              className="w-16 h-16 object-contain"
+            />
+          </div>
         </div>
 
         <div className="bg-white rounded-3xl shadow-2xl border-4 border-pink-200 p-8">
@@ -93,6 +101,7 @@ export function AuthForm() {
                   className="w-full pl-12 pr-6 py-4 rounded-2xl border-2 border-pink-200 focus:border-pink-400 focus:outline-none text-gray-700 placeholder-pink-300"
                 />
               </div>
+              <p className="text-pink-300 text-xs mt-1">Usa tu correo favorito; Hello Kitty lo guardará seguro.</p>
             </div>
 
             <div>
@@ -108,6 +117,7 @@ export function AuthForm() {
                   className="w-full pl-12 pr-6 py-4 rounded-2xl border-2 border-pink-200 focus:border-pink-400 focus:outline-none text-gray-700 placeholder-pink-300"
                 />
               </div>
+              <p className="text-pink-300 text-xs mt-1">Mínimo 6 caracteres. ¡Añade símbolos para más brillo!</p>
             </div>
 
             {error && (
@@ -130,6 +140,11 @@ export function AuthForm() {
                 </>
               )}
             </button>
+
+            <div className="bg-pink-50 border-2 border-pink-200 rounded-2xl p-3 flex items-center gap-2 text-pink-500 text-sm">
+              <Sparkles size={16} />
+              <span>Recibe alertas dulces y mensajes claros para tu día a día.</span>
+            </div>
           </form>
 
           <div className="mt-6 text-center text-sm text-pink-400">
@@ -138,7 +153,10 @@ export function AuthForm() {
               alt="Flores decorativas"
               className="w-24 h-24 rounded-2xl object-cover mx-auto mb-3 shadow-lg"
             />
-            {isLogin ? '¿No tienes cuenta? Registrate arriba' : '¿Ya tienes cuenta? Inicia sesion arriba'}
+            <div className="flex items-center justify-center gap-2">
+              <Heart size={16} className="text-pink-400" />
+              {isLogin ? '¿No tienes cuenta? Registrate arriba' : '¿Ya tienes cuenta? Inicia sesion arriba'}
+            </div>
           </div>
         </div>
       </div>
